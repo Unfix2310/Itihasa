@@ -4,14 +4,10 @@ sealed class ValidationConfig {
     object Empty : ValidationConfig()
     
     data class TextValidationConfig(
-        val expectedText: String, 
         val caseSensitive: Boolean = false
     ) : ValidationConfig()
     
-    data class NumberValidationConfig(
-        val target: Int, 
-        val tolerance: Int = 0
-    ) : ValidationConfig()
+    object NumberValidationConfig : ValidationConfig()
     
     data class VisionValidationConfig(
         val targetAssetId: String, 
@@ -19,8 +15,6 @@ sealed class ValidationConfig {
     ) : ValidationConfig()
     
     data class GpsValidationConfig(
-        val latitude: Double, 
-        val longitude: Double, 
         val radiusMeters: Float
     ) : ValidationConfig()
 }

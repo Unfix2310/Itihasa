@@ -3,53 +3,76 @@ package com.example.itihasa.engine.core
 import com.example.itihasa.engine.domain.Validation
 import com.example.itihasa.engine.domain.ValidationConfig
 
-class TextValidator : Validator {
-    override suspend fun validate(
+interface AnswerVerifier {
+    suspend fun verifyAnswer(
+        validation: Validation,
+        userInput: UserInput
+    ): ValidationResult
+}
+
+/**
+ * Server-side answer verifier for production.
+ * Real answer keys are stored exclusively in deny-all Firestore subcollections
+ * and validated server-side by Firebase Cloud Functions (`verifyChallengeAnswer`).
+ */
+class ServerAnswerVerifier : AnswerVerifier {
+    override suspend fun verifyAnswer(
         validation: Validation,
         userInput: UserInput
     ): ValidationResult {
-        val config = validation.config as? ValidationConfig.TextValidationConfig
-            ?: return ValidationResult.Fail("This challenge has an invalid text rule.")
-        val submitted = when (userInput) {
-            is UserInput.TextInput -> userInput.text
-            is UserInput.ChoiceInput -> userInput.choice
-            else -> return ValidationResult.Fail("Enter a text answer for this challenge.")
-        }
-        val expected = normalize(config.expectedText, config.caseSensitive)
-        val actual = normalize(submitted, config.caseSensitive)
-
-        return if (actual == expected) {
-            ValidationResult.Pass
-        } else {
-            ValidationResult.Fail("That is not quite right. Try another clue and answer again.")
-        }
-    }
-
-    private fun normalize(value: String, caseSensitive: Boolean): String {
-        val trimmed = value.trim().replace(Regex("\\s+"), " ")
-        return if (caseSensitive) trimmed else trimmed.lowercase()
+        return ValidationResult.Fail("Answer verification is executed server-side via Cloud Functions.")
     }
 }
 
-class NumberValidator : Validator {
-    override suspend fun validate(
+/**
+ * Synthetic mock answer verifier strictly for isolated local testing.
+ * Uses mock fake answers only and is never used with production data.
+ */
+class MockAnswerVerifier(
+    private val mockTextAnswers: Map<String, String> = mapOf("TEXT" to "gopuram", "MULTIPLE_CHOICE" to "gopuram"),
+    private val mockNumberAnswers: Map<String, Int> = mapOf("NUMBER" to 12)
+) : AnswerVerifier {
+    override suspend fun verifyAnswer(
         validation: Validation,
         userInput: UserInput
     ): ValidationResult {
-        val config = validation.config as? ValidationConfig.NumberValidationConfig
-            ?: return ValidationResult.Fail("This challenge has an invalid number rule.")
-        val submitted = (userInput as? UserInput.NumberInput)?.number
-            ?: return ValidationResult.Fail("Enter a number for this challenge.")
-
-        return if (kotlin.math.abs(submitted - config.target) <= config.tolerance) {
-            ValidationResult.Pass
-        } else {
-            ValidationResult.Fail("That number is outside the allowed range. Check your count and try again.")
+        return when (validation.config) {
+            is ValidationConfig.TextValidationConfig -> {
+                val submitted = when (userInput) {
+                    is UserInput.TextInput -> userInput.text
+                    is UserInput.ChoiceInput -> userInput.choice
+                    else -> return ValidationResult.Fail("Enter a text answer for this challenge.")
+                }
+                val expected = mockTextAnswers[validation.type] ?: "gopuram"
+                val config = validation.config as ValidationConfig.TextValidationConfig
+                val isMatch = if (config.caseSensitive) submitted.trim() == expected else submitted.trim().lowercase() == expected.lowercase()
+                if (isMatch) ValidationResult.Pass else ValidationResult.Fail("That is not quite right. Try another clue and answer again.")
+            }
+            is ValidationConfig.NumberValidationConfig -> {
+                val submitted = (userInput as? UserInput.NumberInput)?.number
+                    ?: return ValidationResult.Fail("Enter a number for this challenge.")
+                val target = mockNumberAnswers[validation.type] ?: 12
+                if (submitted == target) ValidationResult.Pass else ValidationResult.Fail("That number is outside the allowed range. Check your count and try again.")
+            }
+            else -> ValidationResult.Fail("Validation unavailable.")
         }
     }
 }
 
-/** Camera classification is intentionally deferred until a model is integrated. */
+class TextValidator(private val verifier: AnswerVerifier = ServerAnswerVerifier()) : Validator {
+    override suspend fun validate(
+        validation: Validation,
+        userInput: UserInput
+    ): ValidationResult = verifier.verifyAnswer(validation, userInput)
+}
+
+class NumberValidator(private val verifier: AnswerVerifier = ServerAnswerVerifier()) : Validator {
+    override suspend fun validate(
+        validation: Validation,
+        userInput: UserInput
+    ): ValidationResult = verifier.verifyAnswer(validation, userInput)
+}
+
 class VisionValidator : Validator {
     override suspend fun validate(
         validation: Validation,

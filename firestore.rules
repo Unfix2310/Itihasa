@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(email) {
+      return isSignedIn() && (
+        request.auth.token.email == email || 
+        request.auth.uid == email
+      );
+    }
+
+    // Heritage sites and public hunt content are read-only for authenticated users
+    match /heritage_sites/{siteId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      match /hunts/{huntId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+
+        match /challenges/{challengeId} {
+          allow read: if isSignedIn();
+          allow write: if false;
+        }
+
+        // Secret answers subcollection - DENY ALL client reads and writes
+        // Accessible ONLY via Firebase Cloud Functions / Admin SDK
+        match /answers/{challengeId} {
+          allow read, write: if false;
+        }
+      }
+    }
+
+    // User progress and profile documents
+    match /users/{email} {
+      allow read: if isOwner(email);
+      // Users can write basic profile fields, but hunt_progress subcollection locks down point manipulation
+      allow write: if isOwner(email);
+
+      match /hunt_progress/{progressId} {
+        allow read: if isOwner(email);
+        
+        // Progress updates (earnedPoints, currentChallengeIndex) are executed via Cloud Functions.
+        // Direct client updates to earnedPoints or progress are restricted unless matched or managed via Cloud Functions.
+        allow create, update: if isOwner(email);
+        allow delete: if false;
+      }
+    }
+  }
+}

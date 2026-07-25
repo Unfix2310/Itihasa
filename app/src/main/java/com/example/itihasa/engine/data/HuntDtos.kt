@@ -27,14 +27,9 @@ data class ChallengeDto(
 
 data class ValidationDto(
     val type: String = "",
-    val expectedText: String = "",
     val caseSensitive: Boolean = false,
-    val target: Int = 0,
-    val tolerance: Int = 0,
     val targetAssetId: String = "",
     val confidenceThreshold: Float = 0.8f,
-    val latitude: Double = 0.0,
-    val longitude: Double = 0.0,
     val radiusMeters: Float = 0f
 )
 

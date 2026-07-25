@@ -12,11 +12,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HuntEngineTest {
+    private val mockVerifier = MockAnswerVerifier(
+        mockTextAnswers = mapOf("TEXT" to "gopuram"),
+        mockNumberAnswers = mapOf("NUMBER" to 4)
+    )
+
     @Test
     fun textValidatorTrimsWhitespaceAndIgnoresCase() = runBlocking {
-        val validator = TextValidator()
+        val validator = TextValidator(mockVerifier)
         val result = validator.validate(
-            Validation(config = ValidationConfig.TextValidationConfig("Gopuram")),
+            Validation(type = "TEXT", config = ValidationConfig.TextValidationConfig()),
             UserInput.TextInput("  gopuram  ")
         )
 
@@ -25,10 +30,10 @@ class HuntEngineTest {
 
     @Test
     fun numberValidatorAcceptsValueWithinTolerance() = runBlocking {
-        val validator = NumberValidator()
+        val validator = NumberValidator(mockVerifier)
         val result = validator.validate(
-            Validation(config = ValidationConfig.NumberValidationConfig(target = 12, tolerance = 1)),
-            UserInput.NumberInput(13)
+            Validation(type = "NUMBER", config = ValidationConfig.NumberValidationConfig),
+            UserInput.NumberInput(4)
         )
 
         assertEquals(ValidationResult.Pass, result)
@@ -41,10 +46,14 @@ class HuntEngineTest {
             goal = ChallengeGoal.COUNT_OBJECT,
             question = "How many towers?",
             interactionType = InteractionType.NUMBER,
-            validation = Validation(config = ValidationConfig.NumberValidationConfig(target = 4)),
+            validation = Validation(type = "NUMBER", config = ValidationConfig.NumberValidationConfig),
             points = 25
         )
-        val engine = HuntEngine()
+        val registry = ValidatorRegistry(
+            textValidator = TextValidator(mockVerifier),
+            numberValidator = NumberValidator(mockVerifier)
+        )
+        val engine = HuntEngine(validators = registry)
         val session = engine.start(Hunt(id = "hampi_intro", siteId = "hampi"), listOf(challenge))
 
         val submission = engine.submit(session, UserInput.NumberInput(4))

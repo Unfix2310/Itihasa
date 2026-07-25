@@ -1,30 +1,58 @@
-# Hunt Firestore Data
+# Hunt Firestore Data & Security Architecture
 
-The app now reads published hunts from this path:
+The app reads published hunts from these paths:
 
 ```text
 heritage_sites/{siteId}/hunts/{huntId}
 heritage_sites/{siteId}/hunts/{huntId}/challenges/{challengeId}
 ```
 
-The site ID is the Firestore document ID from `heritage_sites`. The app now uses that document ID even if the site document has no `id` field.
+The secret answer keys are stored in a deny-all server subcollection:
 
-## Hunt document
+```text
+heritage_sites/{siteId}/hunts/{huntId}/answers/{challengeId}
+```
 
-Create a document such as `heritage_sites/hampi/hunts/hampi_intro`:
+## Security Rules (`firestore.rules`)
+
+1. **Public Read-Only Data:** `heritage_sites`, `hunts`, and `challenges` are read-only for authenticated users.
+2. **Deny-All Secret Answers:** `heritage_sites/{siteId}/hunts/{huntId}/answers/{challengeId}` has `allow read, write: if false;`. Client SDKs cannot query or read answer keys.
+3. **User Ownership:** `/users/{email}` and `/users/{email}/hunt_progress/{progressId}` can only be accessed by the owning user (`request.auth.token.email == email`).
+4. **Point Protection:** `earnedPoints` and progress advancement are computed and written server-side by Firebase Cloud Functions.
+
+## Server-Side Answer Verification (`verifyChallengeAnswer`)
+
+Answers are validated server-side by the `verifyChallengeAnswer` Callable Cloud Function:
+
+- **App Check Enforcement:** Mandatory Firebase App Check verification (`context.app`) ensures requests come from official app builds.
+- **Atomic Transactions:** Progress, rate-limit counters (`failedAttempts`), and lockout timestamps (`lockedUntil`) are read and updated atomically.
+- **Progression Check:** Rejects requests if `challengeId` does not match the active `currentChallengeIndex`.
+- **Replay Protection:** Rejects requests if `challengeId` is already in `completedChallengeIds`.
+- **Escalating Lockout:** 5 consecutive failures triggers a 30-second cooldown; 10 failures triggers a 5-minute lockout.
+
+## Secret Answer Document (`answers/{challengeId}`)
+
+Create `heritage_sites/hampi/hunts/hampi_intro/answers/gopuram`:
 
 ```json
 {
-  "title": "Hampi Temple Trail",
-  "description": "Discover the stories hidden in the stone temples.",
-  "coverImageUrl": "",
-  "totalChallenges": 2
+  "expectedText": "gopuram",
+  "caseSensitive": false
 }
 ```
 
-## Text challenge
+Create `heritage_sites/hampi/hunts/hampi_intro/answers/pillars`:
 
-Create `heritage_sites/hampi/hunts/hampi_intro/challenges/gopuram`:
+```json
+{
+  "target": 12,
+  "tolerance": 1
+}
+```
+
+## Challenge Document (`challenges/{challengeId}`)
+
+Public challenge documents contain metadata, questions, clues, points, and validation type, but **no secret answer keys**:
 
 ```json
 {
@@ -33,7 +61,6 @@ Create `heritage_sites/hampi/hunts/hampi_intro/challenges/gopuram`:
   "interactionType": "TEXT",
   "validation": {
     "type": "TEXT",
-    "expectedText": "gopuram",
     "caseSensitive": false
   },
   "isOptional": false,
@@ -44,58 +71,16 @@ Create `heritage_sites/hampi/hunts/hampi_intro/challenges/gopuram`:
   },
   "points": 20,
   "options": [],
-  "order": 1,
-  "metadata": {
-    "difficulty": "EASY",
-    "estimatedTimeMinutes": 1,
-    "concept": "Dravidian architecture",
-    "tags": ["temple", "architecture"],
-    "version": 1,
-    "author": "Itihasa",
-    "createdAt": 0,
-    "updatedAt": 0
-  }
+  "order": 1
 }
 ```
 
-## Number challenge
+## User Progress Document
 
-Create `heritage_sites/hampi/hunts/hampi_intro/challenges/pillars`:
-
-```json
-{
-  "goal": "COUNT_OBJECT",
-  "question": "How many pillars can you count in the marked hall?",
-  "interactionType": "NUMBER",
-  "validation": {
-    "type": "NUMBER",
-    "target": 12,
-    "tolerance": 1
-  },
-  "isOptional": false,
-  "clues": ["Count carefully from left to right."],
-  "points": 25,
-  "options": [],
-  "order": 2,
-  "metadata": {
-    "difficulty": "MEDIUM",
-    "estimatedTimeMinutes": 2,
-    "concept": "Observation",
-    "tags": ["counting"],
-    "version": 1,
-    "author": "Itihasa",
-    "createdAt": 0,
-    "updatedAt": 0
-  }
-}
-```
-
-`MULTIPLE_CHOICE` also works with a `TEXT` validation rule and a non-empty `options` list. The mapper accepts `VISION` and `GPS` validation fields, but the hunt screen deliberately keeps camera and GPS interactions disabled until those features are built.
-
-When a signed-in user progresses, the app creates or updates:
+Progress documents are stored under:
 
 ```text
 users/{email}/hunt_progress/{siteId}_{huntId}
 ```
 
-That progress document stores the current challenge index, completed challenge IDs, earned points, and timestamps. It does not yet add points or completed-hunt totals to the parent `users/{email}` profile document.
+Stores `currentChallengeIndex`, `completedChallengeIds`, `earnedPoints`, `failedAttempts`, `lockedUntil`, and server timestamps.

@@ -272,6 +272,10 @@ private fun FeedbackContent(feedback: InteractionState.Feedback, onContinue: () 
         is ValidationResult.Partial -> Triple("Almost there", result.hint, Terracotta)
         ValidationResult.Skip -> Triple("Skipped", "You can return to this optional challenge later.", Color(0xFF625B52))
         ValidationResult.Timeout -> Triple("Time is up", "Try this challenge again when you are ready.", Terracotta)
+        is ValidationResult.LockedOut -> Triple("Account Cooldown", result.message, Terracotta)
+        is ValidationResult.OutOfOrder -> Triple("Out of Order", result.message, Terracotta)
+        is ValidationResult.RateLimited -> Triple("Slow Down", result.message, Terracotta)
+        is ValidationResult.NetworkError -> Triple("Connection Error", result.message, Terracotta)
     }
     Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Card(

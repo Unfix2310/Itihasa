@@ -38,12 +38,11 @@ private fun ValidationDto.toDomain(): Validation {
     val normalizedType = type.trim().uppercase()
     val config = when (normalizedType) {
         "TEXT", "MULTIPLE_CHOICE" -> ValidationConfig.TextValidationConfig(
-            expectedText = expectedText,
             caseSensitive = caseSensitive
         )
-        "NUMBER" -> ValidationConfig.NumberValidationConfig(target, tolerance)
+        "NUMBER" -> ValidationConfig.NumberValidationConfig
         "VISION" -> ValidationConfig.VisionValidationConfig(targetAssetId, confidenceThreshold)
-        "GPS" -> ValidationConfig.GpsValidationConfig(latitude, longitude, radiusMeters)
+        "GPS" -> ValidationConfig.GpsValidationConfig(radiusMeters)
         else -> ValidationConfig.Empty
     }
     return Validation(type = normalizedType, config = config)
