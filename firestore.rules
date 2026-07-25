@@ -46,8 +46,22 @@ service cloud.firestore {
         allow read: if isOwner(email);
         
         // Progress updates (earnedPoints, currentChallengeIndex) are executed via Cloud Functions.
-        // Direct client updates to earnedPoints or progress are restricted unless matched or managed via Cloud Functions.
-        allow create, update: if isOwner(email);
+        // Direct client updates to scoring fields are restricted. Clients can only create with 0 points
+        // and cannot update points or challenge state.
+        allow create: if isOwner(email) &&
+          request.resource.data.earnedPoints == 0 &&
+          request.resource.data.currentChallengeIndex == 0 &&
+          request.resource.data.completedChallengeIds.size() == 0 &&
+          request.resource.data.get('failedAttempts', 0) == 0 &&
+          request.resource.data.get('lockedUntil', 0) == 0;
+
+        allow update: if isOwner(email) &&
+          request.resource.data.earnedPoints == resource.data.earnedPoints &&
+          request.resource.data.completedChallengeIds == resource.data.completedChallengeIds &&
+          request.resource.data.currentChallengeIndex == resource.data.currentChallengeIndex &&
+          request.resource.data.get('failedAttempts', 0) == resource.data.get('failedAttempts', 0) &&
+          request.resource.data.get('lockedUntil', 0) == resource.data.get('lockedUntil', 0);
+
         allow delete: if false;
       }
     }

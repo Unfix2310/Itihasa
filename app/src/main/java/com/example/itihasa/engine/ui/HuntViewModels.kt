@@ -139,13 +139,9 @@ class HuntViewModel(
     ) {
         viewModelScope.launch {
             var warning: String? = null
-            if (result is ValidationResult.Pass || result is ValidationResult.Skip) {
-                try {
-                    progressRepository.saveProgress(session.toProgress())
-                } catch (error: Exception) {
-                    warning = "Your answer is saved on this screen, but could not sync yet."
-                }
-            }
+            // Progress is written server-side via Firebase Cloud Functions inside a transaction.
+            // We no longer save progress locally on Pass to prevent client tampering.
+            
             _uiState.value = _uiState.value.copy(
                 session = session,
                 interaction = InteractionState.Feedback(

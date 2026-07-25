@@ -59,7 +59,7 @@ class HuntEngine(
                 session,
                 ValidationResult.Fail("This challenge type is not available yet.")
             )
-        val result = validator.validate(challenge.validation, input)
+        val result = validator.validate(session, challenge.validation, input)
         return when (result) {
             ValidationResult.Pass -> HuntSubmission(
                 session = session.copy(

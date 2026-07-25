@@ -20,7 +20,9 @@ class HuntEngineTest {
     @Test
     fun textValidatorTrimsWhitespaceAndIgnoresCase() = runBlocking {
         val validator = TextValidator(mockVerifier)
+        val dummySession = HuntSession(Hunt(id = "test", siteId = "test"), emptyList())
         val result = validator.validate(
+            dummySession,
             Validation(type = "TEXT", config = ValidationConfig.TextValidationConfig()),
             UserInput.TextInput("  gopuram  ")
         )
@@ -31,7 +33,9 @@ class HuntEngineTest {
     @Test
     fun numberValidatorAcceptsValueWithinTolerance() = runBlocking {
         val validator = NumberValidator(mockVerifier)
+        val dummySession = HuntSession(Hunt(id = "test", siteId = "test"), emptyList())
         val result = validator.validate(
+            dummySession,
             Validation(type = "NUMBER", config = ValidationConfig.NumberValidationConfig),
             UserInput.NumberInput(4)
         )
