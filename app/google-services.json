@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "403774466872",
+    "project_id": "itihasa-7ccf9",
+    "storage_bucket": "itihasa-7ccf9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:403774466872:android:da3ddf198a8bdfaeb72fcd",
+        "android_client_info": {
+          "package_name": "com.example.itihasa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "403774466872-8c41mejbm2fon6cih181lcb8m3tihbc4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.itihasa",
+            "certificate_hash": "f2f13d4f9dab6e8c1b7cc65081620b4a7380adec"
+          }
+        },
+        {
+          "client_id": "403774466872-mbh5q07pgeoqtu5ctpaeaikf3d7o9p2n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArbzzD7joB6YoTaPUysrgpAi-kNtMZFK4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "403774466872-mbh5q07pgeoqtu5ctpaeaikf3d7o9p2n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
